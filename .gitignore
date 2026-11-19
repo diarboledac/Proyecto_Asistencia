@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+server_https.log
+
+# Caches y herramientas locales
+.pytest_cache/
+.opencode/
+
+# Base de datos local (SQLite se crea automáticamente al ejecutar)
+*.db
+*.db-shm
+*.db-wal
+
+# Certificados SSL y claves criptográficas (Seguridad)
+*.pem
+*.key
+*.crt
+*.srl
+*.bak
+
+# Entornos virtuales
+venv/
+.venv/
+env/

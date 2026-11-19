@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Control de Asistencia SENA - Lector QR</title>
+  <!-- CDN de html5-qrcode -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #00324D;
+      --secondary: #39A900;
+      --warning: #FF6C00;
+      --danger: #DC3545;
+      --dark: #1E293B;
+      --light: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --border: #E2E8F0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--light);
+      color: var(--dark);
+      padding-bottom: 60px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #00324D 0%, #064E3B 100%);
+      color: white;
+      padding: 16px 20px;
+      text-align: center;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+    }
+
+    /* Input USB */
+    .usb-input-container {
+      position: relative;
+    }
+
+    .usb-input {
+      width: 100%;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .usb-input:focus {
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(57, 169, 0, 0.15);
+    }
+
+    .badge-usb {
+      display: inline-block;
+      font-size: 0.72rem;
+      background: #E0F2FE;
+      color: #0369A1;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+      margin-top: 6px;
+    }
+
+    /* Visor de Cámara */
+    #qr-reader {
+      width: 100% !important;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px dashed #CBD5E1 !important;
+      background: #000;
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qr-reader video {
+      border-radius: 10px;
+      max-height: 380px;
+      object-fit: cover;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background-color: var(--secondary);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: #0284C7;
+      color: white;
+    }
+
+    .btn-danger {
+      background-color: #EF4444;
+      color: white;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #94A3B8;
+      color: #334155;
+    }
+
+    /* Tarjeta de Alerta / Estado */
+    #status-card {
+      display: none;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-exitoso {
+      background-color: #ECFDF5;
+      border: 2px solid #10B981;
+      color: #065F46;
+    }
+
+    .status-duplicado {
+      background-color: #FFFBEB;
+      border: 2px solid #F59E0B;
+      color: #92400E;
+    }
+
+    .status-error {
+      background-color: #FEF2F2;
+      border: 2px solid #EF4444;
+      color: #991B1B;
+    }
+
+    .status-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .status-detail {
+      font-size: 0.90rem;
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+
+    /* Indicador de carga */
+    #loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      font-size: 0.9rem;
+      color: #0284C7;
+      font-weight: 600;
+    }
+
+    /* Tabla de Asistencias */
+    .table-container {
+      max-height: 280px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 10px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #F1F5F9;
+      color: #475569;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    .badge-time {
+      background: #E2E8F0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-family: monospace;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #94A3B8;
+      padding: 24px 0;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Control de Asistencia SENA</h1>
+    <p>Lector Móvil HTTPS & Escáner USB</p>
+  </header>
+
+  <div class="container">
+
+    <!-- ALERTA DE RESULTADO -->
+    <div id="status-card">
+      <div id="status-title" class="status-title"></div>
+      <div id="status-body" class="status-detail"></div>
+    </div>
+
+    <!-- INDICADOR DE PROCESANDO -->
+    <div id="loading-indicator">⏳ Procesando código QR...</div>
+
+    <!-- CÁMARA DEL CELULAR / MÓVIL -->
+    <div class="card">
+      <div class="card-title">
+        <span>📱</span> Cámara del Celular (En Vivo o por Foto)
+      </div>
+
+      <div id="qr-reader">
+        <p style="color: #94A3B8; font-size: 0.85rem; padding: 20px; text-align: center;">
+          Presiona el botón verde para activar la cámara en vivo o el botón azul para capturar foto.
+        </p>
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-iniciar-cam" class="btn btn-primary" onclick="iniciarCamara()">
+          📷 1. Activar Cámara en Vivo
+        </button>
+        <button id="btn-detener-cam" class="btn btn-danger" onclick="detenerCamara()" style="display: none;">
+          ⏹️ Detener Cámara
+        </button>
+
+        <!-- Botón para tomar foto con procesamiento en el servidor -->
+        <label class="btn btn-secondary" style="margin: 0;">
+          📸 2. Tomar Foto al Carnet (Procesado por Servidor)
+          <input type="file" id="foto-input" accept="image/*" capture="environment" style="display: none;" onchange="subirFotoServidor(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- ESCÁNER FÍSICO USB -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔌</span> Escáner Físico USB / Teclado
+      </div>
+      <div class="usb-input-container">
+        <input 
+          type="text" 
+          id="usb-scanner-input" 
+          class="usb-input" 
+          placeholder="Esperando lectura de la pistola USB..." 
+          autocomplete="off" 
+          autofocus
+        />
+        <span class="badge-usb">Captura automática de teclado</span>
+      </div>
+    </div>
+
+    <!-- TABLA DE ASISTENCIAS DE HOY -->
+    <div class="card">
+      <div class="card-title" style="justify-content: space-between;">
+        <span>📋 Registrados Hoy (<span id="contador-hoy">0</span>)</span>
+        <button class="btn btn-outline" style="width: auto; padding: 4px 10px; font-size: 0.75rem;" onclick="cargarAsistenciasHoy()">
+          🔄 Actualizar
+        </button>
+      </div>
+      <div class="table-container">
+        <table id="tabla-asistencias">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Documento</th>
+              <th>Aprendiz</th>
+              <th>Ficha</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-cuerpo">
+            <tr>
+              <td colspan="4" class="empty-state">Cargando registros...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let html5QrCode = null;
+    let bloqueado = false;
+    const usbInput = document.getElementById("usb-scanner-input");
+    const statusCard = document.getElementById("status-card");
+    const statusTitle = document.getElementById("status-title");
+    const statusBody = document.getElementById("status-body");
+    const loading = document.getElementById("loading-indicator");
+
+    // Mantener autofoco en lector USB si no se está usando otro elemento
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("button") && !e.target.closest("label")) {
+        usbInput.focus();
+      }
+    });
+
+    // Beep sonoro en el altavoz del celular
+    function emitirBeep(tipo) {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (tipo === "exitoso") {
+          osc.frequency.setValueAtTime(2500, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.15);
+        } else if (tipo === "duplicado") {
+          osc.frequency.setValueAtTime(1100, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.25);
+        } else {
+          osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+          gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.35);
+        }
+      } catch (err) {
+        console.warn("Audio no disponible:", err);
+      }
+    }
+
+    function mostrarFeedback(res) {
+      loading.style.display = "none";
+      statusCard.className = "";
+      statusCard.style.display = "block";
+
+      if (res.status === "exitoso") {
+        emitirBeep("exitoso");
+        statusCard.classList.add("status-exitoso");
+        statusTitle.innerHTML = "✅ ¡Ingreso Exitoso!";
+        statusBody.innerHTML = `
+          <strong>Aprendiz:</strong> ${res.aprendiz.nombre}<br>
+          <strong>Documento:</strong> ${res.aprendiz.documento} | <strong>Ficha:</strong> ${res.aprendiz.ficha}<br>
+          <small>${res.aprendiz.programa || ""}</small>
+        `;
+      } else if (res.status === "duplicado") {
+        emitirBeep("duplicado");
+        statusCard.classList.add("status-duplicado");
+        statusTitle.innerHTML = "⚠️ Ya Registrado Hoy";
+        statusBody.innerHTML = `
+          <strong>Aprendiz:</strong> ${res.aprendiz.nombre}<br>
+          <strong>Documento:</strong> ${res.aprendiz.documento} | <strong>Ficha:</strong> ${res.aprendiz.ficha}<br>
+          <em>Este carnet ya cuenta con asistencia en el día de hoy.</em>
+        `;
+      } else {
+        emitirBeep("error");
+        statusCard.classList.add("status-error");
+        statusTitle.innerHTML = "❌ Código No Válido";
+        statusBody.innerHTML = res.mensaje || "El código escaneado no es un carnet SENA válido.";
+      }
+    }
+
+    // Enviar string decodificado al backend
+    async function enviarRegistro(qrString) {
+      if (!qrString || qrString.trim() === "" || bloqueado) return;
+      bloqueado = true;
+      loading.style.display = "block";
+
+      try {
+        const response = await fetch("/registrar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ qr_data: qrString.trim() })
+        });
+        const res = await response.json();
+        mostrarFeedback(res);
+        cargarAsistenciasHoy();
+      } catch (error) {
+        mostrarFeedback({ status: "error", mensaje: "Error de conexión: " + error.message });
+      } finally {
+        setTimeout(() => { bloqueado = false; }, 2000);
+      }
+    }
+
+    // Subir foto directamente al servidor para decodificar con OpenCV / pyzbar
+    async function subirFotoServidor(e) {
+      if (e.target.files.length === 0) return;
+      const archivo = e.target.files[0];
+      loading.style.display = "block";
+      loading.innerText = "⏳ Analizando foto con OpenCV...";
+
+      const formData = new FormData();
+      formData.append("foto", archivo);
+
+      try {
+        const response = await fetch("/registrar_foto", {
+          method: "POST",
+          body: formData
+        });
+        const res = await response.json();
+        mostrarFeedback(res);
+        cargarAsistenciasHoy();
+      } catch (error) {
+        mostrarFeedback({ status: "error", mensaje: "Error al enviar la foto: " + error.message });
+      } finally {
+        e.target.value = "";
+      }
+    }
+
+    // Entrada por escáner físico USB
+    usbInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const texto = usbInput.value;
+        usbInput.value = "";
+        enviarRegistro(texto);
+      }
+    });
+
+    // Cámara en vivo con html5-qrcode
+    function iniciarCamara() {
+      if (html5QrCode && html5QrCode.isScanning) return;
+
+      document.getElementById("qr-reader").innerHTML = "";
+      html5QrCode = new Html5Qrcode("qr-reader");
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 260, height: 260 },
+        aspectRatio: 1.0
+      };
+
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          enviarRegistro(decodedText);
+        },
+        (error) => {}
+      ).then(() => {
+        document.getElementById("btn-iniciar-cam").style.display = "none";
+        document.getElementById("btn-detener-cam").style.display = "block";
+      }).catch((err) => {
+        alert("Para habilitar la cámara en vivo:\n1. Asegúrate de entrar con HTTPS (https://192.168.20.21:5000)\n2. Permite los permisos de cámara en tu navegador.\n\nTambién puedes usar el botón azul 'Tomar Foto al Carnet'.");
+      });
+    }
+
+    function detenerCamara() {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          document.getElementById("btn-iniciar-cam").style.display = "block";
+          document.getElementById("btn-detener-cam").style.display = "none";
+          document.getElementById("qr-reader").innerHTML = "<p style='color:#94A3B8;font-size:0.85rem;padding:20px;text-align:center;'>Cámara detenida.</p>";
+        });
+      }
+    }
+
+    // Cargar asistencias registradas hoy
+    async function cargarAsistenciasHoy() {
+      try {
+        const res = await fetch("/api/asistencias/hoy");
+        const data = await res.json();
+        document.getElementById("contador-hoy").innerText = data.total;
+        const tabla = document.getElementById("tabla-cuerpo");
+
+        if (data.registros.length === 0) {
+          tabla.innerHTML = `<tr><td colspan="4" class="empty-state">No hay registros hoy todavía.</td></tr>`;
+          return;
+        }
+
+        let html = "";
+        data.registros.forEach((r) => {
+          html += `
+            <tr>
+              <td><span class="badge-time">${r.hora}</span></td>
+              <td><strong>${r.documento}</strong></td>
+              <td>${r.nombre}</td>
+              <td>${r.ficha}</td>
+            </tr>
+          `;
+        });
+        tabla.innerHTML = html;
+      } catch (err) {}
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      cargarAsistenciasHoy();
+      usbInput.focus();
+    });
+  </script>
+</body>
+</html>
